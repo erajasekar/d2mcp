@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -35,6 +36,11 @@ type StreamableHTTPConfig struct {
 	EndpointPath      string
 	HeartbeatInterval time.Duration
 	Stateless         bool
+	// CORS configuration
+	AllowedOrigins    []string
+	AllowedMethods    []string
+	AllowedHeaders    []string
+	AllowCredentials  bool
 }
 
 // Server represents the MCP server instance.
@@ -125,6 +131,67 @@ func (s *Server) startSSE(ctx context.Context) error {
 	return sseServer.Start(s.sseConfig.Addr)
 }
 
+// corsMiddleware creates a CORS middleware function
+func corsMiddleware(config *StreamableHTTPConfig) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set CORS headers
+			if len(config.AllowedOrigins) > 0 {
+				origin := r.Header.Get("Origin")
+				for _, allowedOrigin := range config.AllowedOrigins {
+					if allowedOrigin == "*" || allowedOrigin == origin {
+						w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+						break
+					}
+				}
+			} else {
+				// Default: allow all origins
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+
+			if len(config.AllowedMethods) > 0 {
+				methods := ""
+				for i, method := range config.AllowedMethods {
+					if i > 0 {
+						methods += ", "
+					}
+					methods += method
+				}
+				w.Header().Set("Access-Control-Allow-Methods", methods)
+			} else {
+				// Default: allow common methods
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			}
+
+			if len(config.AllowedHeaders) > 0 {
+				headers := ""
+				for i, header := range config.AllowedHeaders {
+					if i > 0 {
+						headers += ", "
+					}
+					headers += header
+				}
+				w.Header().Set("Access-Control-Allow-Headers", headers)
+			} else {
+				// Default: allow common headers
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+			}
+
+			if config.AllowCredentials {
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
+
+			// Handle preflight requests
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // startStreamableHTTP starts the server using Streamable HTTP transport.
 func (s *Server) startStreamableHTTP(ctx context.Context) error {
 	if s.streamableHTTPConfig == nil {
@@ -143,8 +210,23 @@ func (s *Server) startStreamableHTTP(ctx context.Context) error {
 		opts = append(opts, server.WithStateLess(true))
 	}
 
-	// Create and start Streamable HTTP server
+	// Create a custom HTTP server with CORS middleware
+	httpServer := &http.Server{
+		Addr: s.streamableHTTPConfig.Addr,
+	}
+
+	// Create Streamable HTTP server with custom HTTP server
 	streamableServer := server.NewStreamableHTTPServer(s.mcpServer, opts...)
+	
+	// Set up CORS middleware
+	handler := corsMiddleware(s.streamableHTTPConfig)(streamableServer)
+	httpServer.Handler = handler
+
+	// Use the custom HTTP server
+	opts = append(opts, server.WithStreamableHTTPServer(httpServer))
+
+	// Create a new server instance with the custom HTTP server
+	streamableServer = server.NewStreamableHTTPServer(s.mcpServer, opts...)
 	return streamableServer.Start(s.streamableHTTPConfig.Addr)
 }
 

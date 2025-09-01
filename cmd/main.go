@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/i2y/d2mcp/internal/infrastructure/d2"
@@ -36,6 +37,11 @@ func main() {
 		endpointPath      string
 		heartbeatInterval int
 		stateless         bool
+		// CORS flags
+		corsOrigins       string
+		corsMethods       string
+		corsHeaders       string
+		corsCredentials   bool
 	)
 	flag.StringVar(&transport, "transport", "sse", "Transport mode: stdio, sse, or streamable")
 	flag.StringVar(&addr, "addr", ":3000", "Address to listen on for SSE/Streamable HTTP transport (e.g., :3000)")
@@ -45,6 +51,11 @@ func main() {
 	flag.StringVar(&endpointPath, "endpoint-path", "/mcp", "Endpoint path for Streamable HTTP transport")
 	flag.IntVar(&heartbeatInterval, "heartbeat-interval", 30, "Heartbeat interval in seconds for Streamable HTTP")
 	flag.BoolVar(&stateless, "stateless", false, "Enable stateless mode for Streamable HTTP")
+	// CORS flags
+	flag.StringVar(&corsOrigins, "cors-origins", "*", "Comma-separated list of allowed CORS origins (default: *)")
+	flag.StringVar(&corsMethods, "cors-methods", "", "Comma-separated list of allowed CORS methods (default: GET,POST,PUT,DELETE,OPTIONS)")
+	flag.StringVar(&corsHeaders, "cors-headers", "", "Comma-separated list of allowed CORS headers (default: Content-Type,Authorization,X-Requested-With)")
+	flag.BoolVar(&corsCredentials, "cors-credentials", false, "Allow CORS credentials")
 	flag.Parse()
 
 	// Validate transport mode.
@@ -117,11 +128,40 @@ func main() {
 		log.Printf("  SSE: %s%s/sse", baseURL, basePath)
 		log.Printf("  Messages: %s%s/message", baseURL, basePath)
 	case "streamable":
+		// Parse CORS configuration
+		var allowedOrigins []string
+		if corsOrigins != "" {
+			allowedOrigins = strings.Split(corsOrigins, ",")
+			for i, origin := range allowedOrigins {
+				allowedOrigins[i] = strings.TrimSpace(origin)
+			}
+		}
+
+		var allowedMethods []string
+		if corsMethods != "" {
+			allowedMethods = strings.Split(corsMethods, ",")
+			for i, method := range allowedMethods {
+				allowedMethods[i] = strings.TrimSpace(method)
+			}
+		}
+
+		var allowedHeaders []string
+		if corsHeaders != "" {
+			allowedHeaders = strings.Split(corsHeaders, ",")
+			for i, header := range allowedHeaders {
+				allowedHeaders[i] = strings.TrimSpace(header)
+			}
+		}
+
 		streamableConfig := &mcp.StreamableHTTPConfig{
 			Addr:              addr,
 			EndpointPath:      endpointPath,
 			HeartbeatInterval: time.Duration(heartbeatInterval) * time.Second,
 			Stateless:         stateless,
+			AllowedOrigins:    allowedOrigins,
+			AllowedMethods:    allowedMethods,
+			AllowedHeaders:    allowedHeaders,
+			AllowCredentials:  corsCredentials,
 		}
 		server.WithTransport(mcp.TransportStreamableHTTP).WithStreamableHTTPConfig(streamableConfig)
 		log.Printf("Streamable HTTP endpoint will be available at:")
@@ -131,6 +171,8 @@ func main() {
 		} else {
 			log.Printf("  Mode: Stateful")
 		}
+		log.Printf("  CORS: Origins=%v, Methods=%v, Headers=%v, Credentials=%v", 
+			allowedOrigins, allowedMethods, allowedHeaders, corsCredentials)
 	}
 
 	// Initialize handlers.
