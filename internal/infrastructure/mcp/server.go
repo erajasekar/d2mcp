@@ -173,8 +173,8 @@ func corsMiddleware(config *StreamableHTTPConfig) func(http.Handler) http.Handle
 				}
 				w.Header().Set("Access-Control-Allow-Headers", headers)
 			} else {
-				// Default: allow common headers
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+				// Default: allow common headers and MCP-specific headers
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, mcp-protocol-version, mcp-session-id")
 			}
 
 			if config.AllowCredentials {

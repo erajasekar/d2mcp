@@ -54,7 +54,7 @@ func main() {
 	// CORS flags
 	flag.StringVar(&corsOrigins, "cors-origins", "*", "Comma-separated list of allowed CORS origins (default: *)")
 	flag.StringVar(&corsMethods, "cors-methods", "", "Comma-separated list of allowed CORS methods (default: GET,POST,PUT,DELETE,OPTIONS)")
-	flag.StringVar(&corsHeaders, "cors-headers", "", "Comma-separated list of allowed CORS headers (default: Content-Type,Authorization,X-Requested-With)")
+	flag.StringVar(&corsHeaders, "cors-headers", "", "Comma-separated list of allowed CORS headers (default: Content-Type,Authorization,X-Requested-With,mcp-protocol-version,mcp-session-id)")
 	flag.BoolVar(&corsCredentials, "cors-credentials", false, "Allow CORS credentials")
 	flag.Parse()
 
