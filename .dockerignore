@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+THEMES.md
+LICENSE
+
+# Build artifacts
+d2mcp
+d2mcp-*
+*.exe
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/tmp/
+
+# Test files
+*_test.go
+test/
+tests/
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Coverage files
+coverage.out
+coverage.html
+
+# Temporary files
+tmp/
+temp/
