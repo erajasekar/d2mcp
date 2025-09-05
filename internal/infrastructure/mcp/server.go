@@ -192,6 +192,13 @@ func corsMiddleware(config *StreamableHTTPConfig) func(http.Handler) http.Handle
 	}
 }
 
+// healthHandler provides a simple health check endpoint
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"healthy","service":"d2mcp"}`))
+}
+
 // startStreamableHTTP starts the server using Streamable HTTP transport.
 func (s *Server) startStreamableHTTP(ctx context.Context) error {
 	if s.streamableHTTPConfig == nil {
@@ -210,24 +217,35 @@ func (s *Server) startStreamableHTTP(ctx context.Context) error {
 		opts = append(opts, server.WithStateLess(true))
 	}
 
-	// Create a custom HTTP server with CORS middleware
-	httpServer := &http.Server{
-		Addr: s.streamableHTTPConfig.Addr,
-	}
-
-	// Create Streamable HTTP server with custom HTTP server
+	// Create Streamable HTTP server
 	streamableServer := server.NewStreamableHTTPServer(s.mcpServer, opts...)
 	
-	// Set up CORS middleware
-	handler := corsMiddleware(s.streamableHTTPConfig)(streamableServer)
-	httpServer.Handler = handler
+	// Create a custom mux to handle both MCP and health endpoints
+	mux := http.NewServeMux()
+	
+	// Add health check endpoint
+	mux.HandleFunc("/health", healthHandler)
+	
+	// Add MCP endpoint with CORS middleware
+	mcpHandler := corsMiddleware(s.streamableHTTPConfig)(streamableServer)
+	mux.Handle(s.streamableHTTPConfig.EndpointPath, mcpHandler)
+	
+	// Handle root path requests by redirecting to MCP endpoint
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, s.streamableHTTPConfig.EndpointPath, http.StatusFound)
+			return
+		}
+		http.NotFound(w, r)
+	})
 
-	// Use the custom HTTP server
-	opts = append(opts, server.WithStreamableHTTPServer(httpServer))
+	// Create HTTP server with our custom mux
+	httpServer := &http.Server{
+		Addr:    s.streamableHTTPConfig.Addr,
+		Handler: mux,
+	}
 
-	// Create a new server instance with the custom HTTP server
-	streamableServer = server.NewStreamableHTTPServer(s.mcpServer, opts...)
-	return streamableServer.Start(s.streamableHTTPConfig.Addr)
+	return httpServer.ListenAndServe()
 }
 
 // GetMCPServer returns the underlying MCP server instance.
