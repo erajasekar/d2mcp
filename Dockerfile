@@ -58,4 +58,4 @@ ENV PORT=8080
 ENV D2_LOG_LEVEL=NONE
 
 # Default command - run in streamable HTTP mode for Cloud Run
-CMD ["./d2mcp", "-transport=streamable", "-addr=:8080", "-stateless=true", "-cors-origins=*", "-cors-credentials=false"]
+CMD ["./d2mcp", "-transport=streamable", "-addr=:8080", "-stateless=false", "-cors-origins=*", "-cors-credentials=false"]
