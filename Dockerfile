@@ -31,6 +31,7 @@ RUN apk add --no-cache \
     tzdata \
     curl \
     librsvg \
+    librsvg-tools \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
