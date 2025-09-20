@@ -30,6 +30,7 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     curl \
+    librsvg \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
