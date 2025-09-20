@@ -26,12 +26,11 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 FROM alpine:3.19
 
 # Install runtime dependencies
-RUN apk add --no-cache \
+RUN apk update && apk add --no-cache \
     ca-certificates \
     tzdata \
     curl \
     librsvg \
-    librsvg-tools \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
